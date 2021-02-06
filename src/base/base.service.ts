@@ -5,6 +5,7 @@ import {
   QueryOptions,
   UpdateQuery,
 } from 'mongoose';
+
 import BaseDocument from './base.document';
 
 abstract class BaseService<T extends BaseDocument> {
@@ -31,7 +32,10 @@ abstract class BaseService<T extends BaseDocument> {
   }
 
   async updateOne(query: FilterQuery<T>, changes: UpdateQuery<T>) {
-    return this.model.updateOne(query, changes);
+    const entity = await this.findOne(query);
+    entity.set(changes);
+
+    return entity.save();
   }
 
   findOneAndUpdate(
@@ -39,7 +43,10 @@ abstract class BaseService<T extends BaseDocument> {
     updateQuery: UpdateQuery<T>,
     options?: QueryOptions,
   ) {
-    return this.model.findOneAndUpdate(query, updateQuery, options);
+    return this.model.findOneAndUpdate(query, updateQuery, {
+      new: true,
+      ...options,
+    });
   }
 
   find(query: FilterQuery<T>) {

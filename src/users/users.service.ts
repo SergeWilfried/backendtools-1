@@ -1,12 +1,16 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { FilterQuery, Model, Types } from 'mongoose';
 
 import BaseService from 'base/base.service';
 import RehiveService from 'rehive/rehive.service';
 
 import { UserDocument, PhoneNumberDocument } from './model';
-import { SavedPhoneNumberDto } from './users.interfaces';
+import {
+  SavedPhoneNumberDto,
+  UpdateUserDto,
+  UpdateUserError,
+} from './users.interfaces';
 
 import { RehiveTransactionsFilterOptions } from 'rehive/rehive.interfaces';
 import { TransactionsService } from 'transactions/transactions.service';
@@ -75,11 +79,19 @@ export class UsersService extends BaseService<UserDocument> {
     return user.savedPhoneNumbers;
   }
 
-  private async checkSavedPhoneNumberExistence(query): Promise<boolean> {
+  private async checkSavedPhoneNumberExistence(
+    userId: string,
+    query: FilterQuery<PhoneNumberDocument>,
+  ): Promise<boolean> {
     return this.exists({
-      savedPhoneNumbers: {
-        $elemMatch: query,
-      },
+      $and: [
+        { _id: userId },
+        {
+          savedPhoneNumbers: {
+            $elemMatch: query,
+          },
+        },
+      ],
     });
   }
 
@@ -88,13 +100,14 @@ export class UsersService extends BaseService<UserDocument> {
     phoneNumber: string,
     phoneOperator: string,
   ): Promise<SavedPhoneNumberDto> {
-    const isSavedPhoneNumberExists = await this.checkSavedPhoneNumberExistence({
-      phoneNumber,
-    });
+    const isSavedPhoneNumberExists = await this.checkSavedPhoneNumberExistence(
+      userId,
+      { phoneNumber },
+    );
 
     if (isSavedPhoneNumberExists) {
       throw new HttpException(
-        { phoneNumber: 'This phonenumber is already added' },
+        { phoneNumber: 'This phone number is already added' },
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -102,7 +115,7 @@ export class UsersService extends BaseService<UserDocument> {
     const { savedPhoneNumbers: phones } = await this.findOneById(userId);
     if (phones.length >= 3) {
       throw new HttpException(
-        { phoneNumber: 'You can`t add more then 3 phonenumbers' },
+        { phoneNumber: 'You can`t add more then 3 phone numbers' },
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -121,11 +134,59 @@ export class UsersService extends BaseService<UserDocument> {
     return savedPhoneNumbers[savedPhoneNumbers.length - 1];
   }
 
+  async checkExistence(
+    userId: string,
+    query: FilterQuery<UserDocument>,
+  ): Promise<boolean> {
+    return this.exists({
+      $and: [{ _id: { $ne: userId } }, query],
+    });
+  }
+
+  async updateUserInfo(
+    userId: string,
+    updatedUser: UpdateUserDto,
+  ): Promise<UserDocument> {
+    const errors: UpdateUserError = {};
+    const [isEmailExist, isPhoneExists] = await Promise.all([
+      this.checkExistence(userId, {
+        email: updatedUser.email,
+      }),
+      this.checkExistence(userId, {
+        phoneNumber: updatedUser.phoneNumber,
+      }),
+    ]);
+
+    if (isEmailExist)
+      errors.email = 'User with this email is already registered';
+
+    if (isPhoneExists)
+      errors.phoneNumber = 'User with this phone number is already registered';
+
+    if (isEmailExist || isPhoneExists) {
+      throw new HttpException(errors, HttpStatus.BAD_REQUEST);
+    }
+
+    return this.updateOne({ _id: userId }, updatedUser);
+  }
+
   async removePhoneNumber(
     userId: string,
     phoneNumberId: string,
   ): Promise<void> {
-    const result = await this.updateOne(
+    const isPhoneNumberExists = await this.checkSavedPhoneNumberExistence(
+      userId,
+      { _id: new Types.ObjectId(phoneNumberId) },
+    );
+
+    if (!isPhoneNumberExists) {
+      throw new HttpException(
+        { phoneNumber: 'This phone number does not exist' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    await this.findOneAndUpdate(
       {
         _id: userId,
         savedPhoneNumbers: {
@@ -138,12 +199,6 @@ export class UsersService extends BaseService<UserDocument> {
         },
       },
     );
-    if (result.n === 0) {
-      throw new HttpException(
-        { phoneNumber: 'This phonenumber does`t exist' },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
   }
 
   async getUserData(userId: string) {

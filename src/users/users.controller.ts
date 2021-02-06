@@ -8,12 +8,18 @@ import {
   Body,
   Param,
   Query,
+  Put,
 } from '@nestjs/common';
 import { DEFAULT_PAGE_SIZE } from 'app.constants';
 import { AuthRequest } from 'auth/dto/auth-request.dto';
 import { AuthGuard } from 'auth/guards/auth.guard';
 import { VerifyUserDto } from './dto';
-import { SavedPhoneNumberDto, AddPhoneNumberDto } from './users.interfaces';
+import {
+  SavedPhoneNumberDto,
+  AddPhoneNumberDto,
+  UpdateUserDto,
+  UserDto,
+} from './users.interfaces';
 import { UsersService } from './users.service';
 
 @Controller('users')
@@ -21,10 +27,11 @@ import { UsersService } from './users.service';
 export class UsersController {
   constructor(private usersService: UsersService) {}
   @Get('/current')
-  public getCurrentUser(@Req() req: AuthRequest) {
+  public async getCurrentUser(@Req() req: AuthRequest): Promise<UserDto> {
     const { user } = req;
 
-    return this.usersService.findOneById(user._id);
+    const userDocument = await this.usersService.findOneById(user._id);
+    return UserDto.fromUserDocument(userDocument);
   }
 
   @Get('current/balance')
@@ -77,13 +84,28 @@ export class UsersController {
     );
   }
 
+  @Put('current')
+  public async updateUser(
+    @Req() req: AuthRequest,
+    @Body() updatedUser: UpdateUserDto,
+  ): Promise<UserDto> {
+    const { user } = req;
+
+    const userDocument = await this.usersService.updateUserInfo(
+      user._id,
+      updatedUser,
+    );
+
+    return UserDto.fromUserDocument(userDocument);
+  }
+
   @Delete('/current/phoneNumbers/:phoneNumberId')
-  public removeCurrentUserPhoneNumber(
+  public async removeCurrentUserPhoneNumber(
     @Req() req: AuthRequest,
     @Param('phoneNumberId') phoneNumberId: string,
   ) {
     const { user } = req;
-    this.usersService.removePhoneNumber(user._id, phoneNumberId);
+    await this.usersService.removePhoneNumber(user._id, phoneNumberId);
 
     return {};
   }
