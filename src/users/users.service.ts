@@ -5,8 +5,8 @@ import { Model, Types } from 'mongoose';
 import BaseService from 'base/base.service';
 import RehiveService from 'rehive/rehive.service';
 
-import { UserDocument, PhoneNumberDocument } from './model';
-import { SavedPhoneNumberDto } from './users.interfaces';
+import { UserDocument, PhoneNumberDocument, DebitCardDocument } from './model';
+import { SavedPhoneNumberDto, SavedDebitCardDto } from './users.interfaces';
 
 import { RehiveTransactionsFilterOptions } from 'rehive/rehive.interfaces';
 import { TransactionsService } from 'transactions/transactions.service';
@@ -19,6 +19,8 @@ export class UsersService extends BaseService<UserDocument> {
     model: Model<UserDocument>,
     @InjectModel(PhoneNumberDocument.name)
     private readonly phoneNumberModel: Model<PhoneNumberDocument>,
+    @InjectModel(DebitCardDocument.name)
+    private readonly debitCardModel: Model<DebitCardDocument>,
     private readonly rehiveService: RehiveService,
     private transactionsService: TransactionsService,
   ) {
@@ -140,7 +142,7 @@ export class UsersService extends BaseService<UserDocument> {
     );
     if (result.n === 0) {
       throw new HttpException(
-        { phoneNumber: 'This phonenumber does`t exist' },
+        { phoneNumber: 'This phonenumber doesn`t exist' },
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -176,6 +178,98 @@ export class UsersService extends BaseService<UserDocument> {
         identityAccessKey,
       },
     });
+  }
+
+  async getDebitCards(userId: string): Promise<SavedDebitCardDto[]> {
+    const user = await this.findOneById(userId);
+    return user.savedDebitCards;
+  }
+
+  async getDebitCardById(
+    userId: string,
+    debitCardId: string,
+  ): Promise<SavedDebitCardDto> {
+    const user = await this.findOneById(userId);
+
+    return user.savedDebitCards.find(
+      (debitCard) => debitCard._id.toString() === debitCardId,
+    );
+  }
+
+  async removeDebitCard(userId: string, debitCardId: string): Promise<void> {
+    const result = await this.updateOne(
+      {
+        _id: userId,
+        savedDebitCards: {
+          $elemMatch: { _id: new Types.ObjectId(debitCardId) },
+        },
+      },
+      {
+        $pull: {
+          savedDebitCards: { _id: new Types.ObjectId(debitCardId) },
+        },
+      },
+    );
+    if (result.n === 0) {
+      throw new HttpException(
+        { phoneNumber: 'This card doesn`t exist' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  private async checkSavedCardExistence(query): Promise<boolean> {
+    return this.exists({
+      savedDebitCards: {
+        $elemMatch: query,
+      },
+    });
+  }
+
+  async addDebitCard(
+    userId: string,
+    {
+      cardHolder,
+      cardNumber,
+      cardCVC,
+      cardExpirationDate,
+      cardBrand,
+    }: {
+      cardHolder: string;
+      cardNumber: string;
+      cardCVC: string;
+      cardExpirationDate: string;
+      cardBrand: string;
+    },
+  ): Promise<SavedDebitCardDto> {
+    const isSavedCardExists = await this.checkSavedCardExistence({
+      cardNumber,
+    });
+
+    if (isSavedCardExists) {
+      throw new HttpException(
+        {
+          cardNumber: 'This debit card has been already added',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const newDebitCard = new this.debitCardModel({
+      cardHolder,
+      cardNumber,
+      cardCVC,
+      cardExpirationDate,
+      cardBrand,
+    });
+
+    const { savedDebitCards } = await this.findOneAndUpdate(
+      { _id: userId },
+      { $push: { savedDebitCards: newDebitCard } },
+      { new: true },
+    );
+
+    return savedDebitCards[savedDebitCards.length - 1];
   }
 
   async updateUserKYC(identityAccessKey: string, status: string) {

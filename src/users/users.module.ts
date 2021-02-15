@@ -5,8 +5,12 @@ import { AuthModule } from 'auth/auth.module';
 import { RehiveModule } from 'rehive/rehive.module';
 import { TransactionsModule } from 'transactions/transactions.module';
 
-import { User, PhoneNumber } from './model/users.document';
-import { UsersSchema, PhoneNumberSchema } from './model/users.schema';
+import { User, PhoneNumber, DebitCard } from './model/users.document';
+import {
+  UsersSchema,
+  PhoneNumberSchema,
+  DebitCardSchema,
+} from './model/users.schema';
 
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
@@ -17,6 +21,9 @@ import { UsersController } from './users.controller';
     MongooseModule.forFeature([{ name: User.name, schema: UsersSchema }]),
     MongooseModule.forFeature([
       { name: PhoneNumber.name, schema: PhoneNumberSchema },
+    ]),
+    MongooseModule.forFeature([
+      { name: DebitCard.name, schema: DebitCardSchema },
     ]),
     forwardRef(() => AuthModule),
     RehiveModule,

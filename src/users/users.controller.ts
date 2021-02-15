@@ -13,7 +13,12 @@ import { DEFAULT_PAGE_SIZE } from 'app.constants';
 import { AuthRequest } from 'auth/dto/auth-request.dto';
 import { AuthGuard } from 'auth/guards/auth.guard';
 import { VerifyUserDto } from './dto';
-import { SavedPhoneNumberDto, AddPhoneNumberDto } from './users.interfaces';
+import {
+  SavedPhoneNumberDto,
+  AddPhoneNumberDto,
+  SavedDebitCardDto,
+  AddDebitCardDto,
+} from './users.interfaces';
 import { UsersService } from './users.service';
 
 @Controller('users')
@@ -100,5 +105,58 @@ export class UsersController {
   @Get('/:userId')
   getUserById(@Param('userId') userId: string) {
     return this.usersService.getUserData(userId);
+  }
+
+  @Get('/current/debitCards')
+  public getCurrentUserDebitCards(
+    @Req() req: AuthRequest,
+  ): Promise<SavedDebitCardDto[]> {
+    const { user } = req;
+
+    return this.usersService.getDebitCards(user._id);
+  }
+
+  @Get('/current/debitCards/:debitCardId')
+  public getCurrentUserDebitCard(
+    @Req() req: AuthRequest,
+    @Param('debitCardId') debitCardId: string,
+  ): Promise<SavedDebitCardDto> {
+    const { user } = req;
+
+    return this.usersService.getDebitCardById(user._id, debitCardId);
+  }
+
+  @Delete('/current/debitCards/:debitCardId')
+  public removeCurrentUserDebitCard(
+    @Req() req: AuthRequest,
+    @Param('debitCardId') debitCardId: string,
+  ) {
+    const { user } = req;
+    this.usersService.removeDebitCard(user._id, debitCardId);
+
+    return {};
+  }
+
+  @Post('/current/debitCards')
+  public addCurrentUserDebitCard(
+    @Req() req: AuthRequest,
+    @Body()
+    {
+      cardHolder,
+      cardNumber,
+      cardCVC,
+      cardExpirationDate,
+      cardBrand,
+    }: AddDebitCardDto,
+  ): Promise<SavedDebitCardDto> {
+    const { user } = req;
+
+    return this.usersService.addDebitCard(user._id, {
+      cardHolder,
+      cardNumber,
+      cardCVC,
+      cardExpirationDate,
+      cardBrand,
+    });
   }
 }

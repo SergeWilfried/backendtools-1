@@ -18,3 +18,20 @@ export interface AddPhoneNumberDto {
   phoneOperator: string;
   phoneNumber: string;
 }
+
+export interface SavedDebitCardDto {
+  _id?: string;
+  cardHolder: string;
+  cardNumber: string;
+  cardCVC: string;
+  cardExpirationDate: string;
+  cardBrand: string;
+}
+
+export interface AddDebitCardDto {
+  cardHolder: string;
+  cardNumber: string;
+  cardCVC: string;
+  cardExpirationDate: string;
+  cardBrand: string;
+}

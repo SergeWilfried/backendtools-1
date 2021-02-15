@@ -13,6 +13,24 @@ export class PhoneNumber extends Document {
   phoneOperator: string;
 }
 
+@Schema()
+export class DebitCard extends Document {
+  @Prop()
+  cardHolder: string;
+
+  @Prop()
+  cardNumber: string;
+
+  @Prop()
+  cardCVC: string;
+
+  @Prop()
+  cardExpirationDate: string;
+
+  @Prop()
+  cardBrand: string;
+}
+
 @Schema({ timestamps: true })
 export class User extends BaseDocument {
   @Prop({
@@ -64,4 +82,7 @@ export class User extends BaseDocument {
 
   @Prop()
   kyc: KYCInfo;
+
+  @Prop()
+  savedDebitCards: Array<DebitCard>;
 }
