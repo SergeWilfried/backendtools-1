@@ -4,6 +4,7 @@ import {
   Req,
   UseGuards,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -12,7 +13,11 @@ import {
 import { DEFAULT_PAGE_SIZE } from 'app.constants';
 import { AuthRequest } from 'auth/dto/auth-request.dto';
 import { AuthGuard } from 'auth/guards/auth.guard';
-import { SavedPhoneNumberDto, AddPhoneNumberDto } from './users.interfaces';
+import {
+  SavedPhoneNumberDto,
+  AddPhoneNumberDto,
+  ResetPasswordDto,
+} from './users.interfaces';
 import { UsersService } from './users.service';
 
 @Controller('users')
@@ -90,5 +95,19 @@ export class UsersController {
   @Get('/:userId')
   getUserById(@Param('userId') userId: string) {
     return this.usersService.getUserData(userId);
+  }
+
+  @Patch('/current/reset-password')
+  public resetPassword(
+    @Req() req: AuthRequest,
+    @Body() { currentPassword, newPassword }: ResetPasswordDto,
+  ) {
+    const { user } = req;
+
+    return this.usersService.resetPassword(
+      user._id,
+      currentPassword,
+      newPassword,
+    );
   }
 }

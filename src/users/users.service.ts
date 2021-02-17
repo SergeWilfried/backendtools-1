@@ -8,6 +8,8 @@ import RehiveService from 'rehive/rehive.service';
 import { UserDocument, PhoneNumberDocument } from './model';
 import { SavedPhoneNumberDto } from './users.interfaces';
 
+import { compareTextWithHash, getHash } from 'helpers/security.util';
+
 import { RehiveTransactionsFilterOptions } from 'rehive/rehive.interfaces';
 import { TransactionsService } from 'transactions/transactions.service';
 
@@ -151,5 +153,27 @@ export class UsersService extends BaseService<UserDocument> {
       throw new HttpException({ user: 'Not Found' }, HttpStatus.BAD_REQUEST);
     }
     return userData;
+  }
+
+  public async resetPassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.findOne({ _id: userId });
+
+    const isCorrectPassword = await compareTextWithHash(
+      currentPassword,
+      user.password,
+    );
+
+    if (!isCorrectPassword) {
+      throw new HttpException(
+        { currentPassword: 'Current password is not correct' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const hashNewPassword = await getHash(newPassword);
+    await this.updateOne({ _id: userId }, { password: hashNewPassword });
   }
 }

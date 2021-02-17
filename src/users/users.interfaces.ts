@@ -13,3 +13,8 @@ export interface AddPhoneNumberDto {
   phoneOperator: string;
   phoneNumber: string;
 }
+
+export interface ResetPasswordDto {
+  currentPassword: string;
+  newPassword: string;
+}
